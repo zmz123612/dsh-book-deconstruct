@@ -1,6 +1,6 @@
 {
   "name": "dsh-book-deconstruct",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "description": "DSH Host plugin: /book slash command + book_deconstruct tool for full book walkthroughs.",
   "keywords": [
     "dsh",

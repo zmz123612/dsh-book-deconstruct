@@ -35,6 +35,12 @@ dsh plugin --profile desktop add github:OWNER/dsh-book-deconstruct
 /book 思考，快与慢 | 丹尼尔·卡尼曼
 ```
 
+输出两段：
+
+1. **故事情节** — 讲清整本书（不是一句话短评，也不灌水）
+2. **一段有深度的思考** — 只写一整段
+
+
 也支持：
 
 ```text

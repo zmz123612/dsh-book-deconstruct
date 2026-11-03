@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Book Deconstruct",
-    "description": "Host plugin: /book and book_deconstruct in any session. Give a title and author for a full walkthrough plus one deep insight."
+    "description": "Host plugin: /book and book_deconstruct in any session. Clear plot of the whole book, then one deep reflection."
   }
 }

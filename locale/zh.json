@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "书籍拆解",
-    "description": "Host 插件：任意会话可用 /book 与 book_deconstruct。输入书名与作者，把整本书讲透，最后给出一段有深度的思想。"
+    "description": "Host 插件：任意会话可用 /book 与 book_deconstruct。先讲清全书故事情节，再给出一段有深度的思考。"
   }
 }

@@ -144,9 +144,15 @@ export function parseBookInput(raw) {
 
 function buildSteerPrompt(parsed, raw) {
   if (parsed !== null) {
-    return `请用 book_deconstruct 工具解读《${parsed.title}》，作者${parsed.author}`;
+    return (
+      `必须调用 book_deconstruct 工具解读《${parsed.title}》，作者${parsed.author}。` +
+      '不要自己直接写短评或一两句话概括；完整解读由该工具产出。'
+    );
   }
-  return `请用 book_deconstruct 工具处理用户的书籍解读请求：${raw}`;
+  return (
+    `必须调用 book_deconstruct 工具处理用户的书籍解读请求：${raw}。` +
+    '不要自己直接写短评或一两句话概括；完整解读由该工具产出。'
+  );
 }
 
 /** 不依赖 @deepseek-ai/dsh-llm（本地 file: 插件 realpath 解析不到宿主包）。 */
@@ -185,6 +191,8 @@ const SYSTEM_PROMPT = [
   '4. 不写目录复述，不写百科词条。要写出这本书的骨架和真正的洞见。',
   '5. 用中文 Markdown，深度优先，语言干净利落，不堆砌空洞形容词。',
   '6. 如果对书名或作者没有可靠信息，直接说明「我无法可靠地解读这本书」，不要编造内容。',
+  '7. 严禁一两句话交差。主体部分必须展开到约 1200–1800 字；最后的思想约 250–400 字。达不到这个厚度就继续写，不要提前收束。',
+  '8. 不要写成鸡汤短评、书腰简介或朋友圈文案；要让没读过的人也能大致掌握全书内容。',
 ].join('\n');
 
 function buildAnalysisPrompt(title, author) {
@@ -194,21 +202,21 @@ function buildAnalysisPrompt(title, author) {
 请直接输出成品，只写下面两部分，不要写任何分析过程或元信息。
 
 ## 这本书讲的是什么事
-用 1000–1800 字，把整本书的内容讲透（这是主体部分）：
-- 这本书的核心主题，以及它在回答什么问题；
-- 全书的结构与推进方式：大致分几部分/几条主线，每部分主要讲了什么；
-- 关键概念、核心论点、重要方法或案例（用自己的话转述，不编造引文）；
-- 作者的基本立场与最终结论。
-要求：按书的内容实际展开，让人读完这一段就基本掌握这本书讲了什么；不要只写一句概括，也不要写成目录清单。
+用约 1200–1800 字把整本书的内容讲透（这是主体，严禁短评式一两段就结束）：
+- 核心主题，以及它在回答什么问题；
+- 结构与推进：大致分几部分/几条主线，各部分分别讲什么、如何推进；
+- 关键人物或关键概念、核心论点、重要情节/方法/案例（用自己的话转述，不编造引文）；
+- 作者的基本立场与最终落点。
+写到让没读过的人读完也能掌握全书骨架；不要一句概括，不要目录清单，也不要灌水凑字。
 
 ## 一段深度的思想
-用 250–400 字写**一整段**（不要分条、不要小标题），从整本书里提炼一个最深的洞见或结论：
+用约 250–400 字写**一整段**（不要分条、不要小标题），提炼一个最深洞见：
 - 它是什么；
-- 为什么成立（结合书中的内容）；
+- 为什么成立（扣住书中内容）；
 - 对读者意味着什么。
-只写这一段，不要再列多条结论。
+只写这一段。
 
-要求：直接给结果，不要写「我如何分析」「我的知识边界」「置信度」这类内容。`;
+全文合计大约 1500–2200 字为宜：详细，但不写成论文或流水账。直接给结果，不要写分析过程或置信度。`;
 }
 
 // ---------------------------------------------------------------------------
@@ -321,32 +329,27 @@ export function apply(ctx, rawConfig) {
           return { kind: 'error', text: USAGE };
         }
 
+        // 能解析出书名作者时，直接跑解读（避免模型自己写一两句短评交差）。
+        if (parsed !== null) {
+          try {
+            const text = await deconstruct(ctx, config, parsed.title, parsed.author, {
+              signal: invocation.signal,
+            });
+            return { kind: 'success', text };
+          } catch (error) {
+            const message = error !== null && error !== undefined && error.message ? error.message : String(error);
+            return { kind: 'error', text: '解读失败：' + message };
+          }
+        }
+
+        // 解析不出时，再交给智能体去调工具补全书名/作者。
         const prompt = buildSteerPrompt(parsed, raw);
         const agent = invocation.agent;
         const ok = enqueueUserTurn(agent, makeUserMessage(prompt));
         if (ok) {
-          if (parsed !== null) {
-            return {
-              kind: 'success',
-              text: `已提交解读：《${parsed.title}》 / ${parsed.author}（将调用 book_deconstruct）`,
-            };
-          }
           return { kind: 'success', text: '已提交书籍解读请求（将调用 book_deconstruct）' };
         }
-
-        // followup/steer 不可用时，直接跑工具逻辑，保证斜杠有反馈
-        if (parsed === null) {
-          return { kind: 'error', text: USAGE };
-        }
-        try {
-          const text = await deconstruct(ctx, config, parsed.title, parsed.author, {
-            signal: invocation.signal,
-          });
-          return { kind: 'success', text };
-        } catch (error) {
-          const message = error !== null && error !== undefined && error.message ? error.message : String(error);
-          return { kind: 'error', text: '解读失败：' + message };
-        }
+        return { kind: 'error', text: USAGE };
       },
     }),
   );
@@ -355,7 +358,7 @@ export function apply(ctx, rawConfig) {
     ctx.tools.register({
       name: 'book_deconstruct',
       description:
-        '深度解读一本书：输入书名与作者，先详细讲清整本书的内容，最后给出一段有深度的思想。当用户要求「解读/总结/拆解某本书」时使用。',
+        '深度解读一本书：输入书名与作者，产出约 1500–2200 字的成品（主体讲透全书约 1200–1800 字，最后一段思想约 250–400 字）。禁止一两句短评。当用户要求解读/总结/拆解某本书时必须调用本工具，不要自己直接写短文替代。',
       parameters: {
         type: 'object',
         properties: {

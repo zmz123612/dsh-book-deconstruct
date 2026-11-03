@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Book deconstruct preset">
+  <rect x="8" y="10" width="40" height="44" rx="8" fill="#eef4ff" stroke="#2f6fed" stroke-width="3"/>
+  <path d="M28 15 V49" stroke="#8fb6f7" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M15 21 H23" stroke="#2f6fed" stroke-width="3" stroke-linecap="round"/>
+  <path d="M15 28 H23" stroke="#8fb6f7" stroke-width="3" stroke-linecap="round"/>
+  <path d="M15 35 H21" stroke="#8fb6f7" stroke-width="3" stroke-linecap="round"/>
+  <path d="M33 21 H41" stroke="#2f6fed" stroke-width="3" stroke-linecap="round"/>
+  <path d="M33 28 H41" stroke="#8fb6f7" stroke-width="3" stroke-linecap="round"/>
+  <path d="M46 36 L47.8 41.2 L53 43 L47.8 44.8 L46 50 L44.2 44.8 L39 43 L44.2 41.2 Z" fill="#f2b622" stroke="#d19a12" stroke-width="1.5" stroke-linejoin="round"/>
+</svg>

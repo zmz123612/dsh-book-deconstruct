@@ -1,0 +1,47 @@
+{
+  "name": "dsh-book-deconstruct",
+  "version": "1.1.2",
+  "description": "DSH Host plugin: /book slash command + book_deconstruct tool for full book walkthroughs.",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "book",
+    "reading"
+  ],
+  "license": "MIT",
+  "author": "Kang",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./cordis.patch.yml": "./cordis.patch.yml"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "locale/en.json",
+    "locale/zh.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "dsh": ">=0.2.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zmz123612/dsh-book-deconstruct.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zmz123612/dsh-book-deconstruct/issues"
+  },
+  "homepage": "https://github.com/zmz123612/dsh-book-deconstruct#readme"
+}

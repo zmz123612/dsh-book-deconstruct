@@ -329,27 +329,33 @@ export function apply(ctx, rawConfig) {
           return { kind: 'error', text: USAGE };
         }
 
-        // 能解析出书名作者时，直接跑解读（避免模型自己写一两句短评交差）。
-        if (parsed !== null) {
-          try {
-            const text = await deconstruct(ctx, config, parsed.title, parsed.author, {
-              signal: invocation.signal,
-            });
-            return { kind: 'success', text };
-          } catch (error) {
-            const message = error !== null && error !== undefined && error.message ? error.message : String(error);
-            return { kind: 'error', text: '解读失败：' + message };
-          }
-        }
-
-        // 解析不出时，再交给智能体去调工具补全书名/作者。
+        // 桌面端：先 steer/followup 让会话调用工具（整行发送才有反应）。
+        // 不要在 handler 里长时间 await 模型，否则输入框像「点了没反应」。
         const prompt = buildSteerPrompt(parsed, raw);
         const agent = invocation.agent;
         const ok = enqueueUserTurn(agent, makeUserMessage(prompt));
         if (ok) {
+          if (parsed !== null) {
+            return {
+              kind: 'success',
+              text: `已提交解读：《${parsed.title}》 / ${parsed.author}（请等待 book_deconstruct 产出完整解读，勿自行短评）`,
+            };
+          }
           return { kind: 'success', text: '已提交书籍解读请求（将调用 book_deconstruct）' };
         }
-        return { kind: 'error', text: USAGE };
+
+        if (parsed === null) {
+          return { kind: 'error', text: USAGE };
+        }
+        try {
+          const text = await deconstruct(ctx, config, parsed.title, parsed.author, {
+            signal: invocation.signal,
+          });
+          return { kind: 'success', text };
+        } catch (error) {
+          const message = error !== null && error !== undefined && error.message ? error.message : String(error);
+          return { kind: 'error', text: '解读失败：' + message };
+        }
       },
     }),
   );

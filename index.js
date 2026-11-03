@@ -307,9 +307,11 @@ export function apply(ctx, rawConfig) {
 
   disposers.push(
     ctx.commands.register({
-      // 不要挂 input.hint：桌面端会变成「选命令再填参数」两步，整行 `/book …` 点发送常无反应。
+      // 挂 input.hint：从 / 菜单选 book 时保留输入框，继续填「书名 | 作者」。
+      // 也可整行输入 /book 书名 | 作者 后直接发送。
       name: 'book',
       description: '深度解读一本书。用法：/book 书名 | 作者',
+      input: { hint: '书名 | 作者' },
       handler: async (invocation) => {
         const raw = String(invocation.rawInput ?? '').trim();
         if (raw === '') return { kind: 'error', text: USAGE };

@@ -7,12 +7,13 @@
  *
  * 两个入口共用同一套解读逻辑（工具 execute）：
  *   - `/dsh-book-deconstruct …` 斜杠命令：解析后 followup/steer 用户消息，让模型调用 dsh-book-deconstruct
+ *   - 自然语言（解读/帮我拆解…）：在 agent/pre-step 改写成同一条 steer 提示，再调工具
  *   - `dsh-book-deconstruct` 工具（智能体在对话中调用）
  */
 
 import { randomUUID } from 'node:crypto';
 
-export const inject = ['llm', 'commands', 'tools'];
+export const inject = ['llm', 'commands', 'tools', 'agents'];
 
 const DEFAULT_TEMPERATURE = 0.5;
 const DEFAULT_MAX_TOKENS = 8000;
@@ -170,17 +171,38 @@ export function parseBookInput(raw) {
   return null;
 }
 
+const STEER_MARKER = '必须调用 dsh-book-deconstruct 工具';
+
 function buildSteerPrompt(parsed, raw) {
   if (parsed !== null) {
     return (
-      `必须调用 dsh-book-deconstruct 工具解读《${parsed.title}》，作者${parsed.author}。` +
+      `${STEER_MARKER}解读《${parsed.title}》，作者${parsed.author}。` +
       '不要自己直接写短评或一两句话概括；完整解读由该工具产出。'
     );
   }
   return (
-    `必须调用 dsh-book-deconstruct 工具处理用户的书籍解读请求：${raw}。` +
+    `${STEER_MARKER}处理用户的书籍解读请求：${raw}。` +
     '不要自己直接写短评或一两句话概括；完整解读由该工具产出。'
   );
+}
+
+function messageText(message) {
+  if (message === null || message === undefined || !Array.isArray(message.content)) return '';
+  return message.content
+    .filter((block) => block !== null && typeof block === 'object' && block.type === 'text')
+    .map((block) => String(block.text ?? ''))
+    .join('\n')
+    .trim();
+}
+
+/** 自然语言书籍解读：改写成与斜杠命令相同的强制调工具提示。 */
+function shouldSteerFreeform(text) {
+  if (text === '' || text.includes(STEER_MARKER)) return false;
+  if (/^\/dsh-book-deconstruct\b/i.test(text)) return false;
+  if (!hasBookIntent(text)) return false;
+  const parsed = parseBookInput(text);
+  if (parsed !== null) return true;
+  return /作者|by|《.|》/u.test(text) || /[|｜]/u.test(text);
 }
 
 /** 不依赖 @deepseek-ai/dsh-llm（本地 file: 插件 realpath 解析不到宿主包）。 */
@@ -333,6 +355,27 @@ async function deconstruct(ctx, config, rawTitle, rawAuthor, options = {}) {
 export function apply(ctx, rawConfig) {
   const config = normalizeConfig(rawConfig);
   const disposers = [];
+
+  // 普通对话里说「解读/帮我拆解…」时，斜杠 handler 不会跑；
+  // 在 pre-step 把用户话改写成与 /dsh-book-deconstruct 相同的 steer，强制走工具。
+  disposers.push(
+    ctx.on('agent/pre-step', async (_payload, next) => {
+      const decision = await next();
+      if (decision.kind !== 'enter') return decision;
+
+      let changed = false;
+      const rewritten = decision.messages.map((message) => {
+        const source = message.source;
+        if (source !== null && source !== undefined && source.kind === 'plugin') return message;
+        const raw = messageText(message);
+        if (!shouldSteerFreeform(raw)) return message;
+        changed = true;
+        return makeUserMessage(buildSteerPrompt(parseBookInput(raw), raw));
+      });
+      if (!changed) return decision;
+      return { kind: 'enter', messages: rewritten };
+    }),
+  );
 
   disposers.push(
     ctx.commands.register({

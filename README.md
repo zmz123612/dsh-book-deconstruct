@@ -2,8 +2,8 @@
 
 DeepSeek Harness **Host 插件**（不是 Agent 预设）：装进 profile 后会出现在插件列表，**任意会话**都可用：
 
-- 斜杠命令：`/book 书名 | 作者`
-- 工具：`book_deconstruct`（智能体在对话里调用）
+- 斜杠命令：`/dsh-book-deconstruct 书名 | 作者`
+- 工具：`dsh-book-deconstruct`（智能体在对话里调用）
 
 ## 安装
 
@@ -16,7 +16,7 @@ dsh plugin --profile desktop add dsh-book-deconstruct
 从本地目录（开发）：
 
 ```sh
-dsh plugin --profile desktop add /path/to/book-deconstruct
+dsh plugin --profile desktop add /path/to/dsh-book-deconstruct-deconstruct
 ```
 
 从 GitHub（需公开仓库）：
@@ -32,7 +32,7 @@ dsh plugin --profile desktop add github:OWNER/dsh-book-deconstruct
 任意预设下的会话均可：
 
 ```text
-/book 思考，快与慢 | 丹尼尔·卡尼曼
+/dsh-book-deconstruct 思考，快与慢 | 丹尼尔·卡尼曼
 ```
 
 输出两段：
@@ -44,7 +44,7 @@ dsh plugin --profile desktop add github:OWNER/dsh-book-deconstruct
 也支持：
 
 ```text
-/book 《思考，快与慢》丹尼尔·卡尼曼
+/dsh-book-deconstruct 《思考，快与慢》丹尼尔·卡尼曼
 ```
 
 或直接说：「帮我解读《思考，快与慢》，作者丹尼尔·卡尼曼」。

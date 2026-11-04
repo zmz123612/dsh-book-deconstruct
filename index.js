@@ -6,8 +6,8 @@
  *   2. 一段有深度的思考（最后只写一段，不列条目）
  *
  * 两个入口共用同一套解读逻辑（工具 execute）：
- *   - `/book …` 斜杠命令：解析后 followup/steer 用户消息，让模型调用 book_deconstruct
- *   - `book_deconstruct` 工具（智能体在对话中调用）
+ *   - `/dsh-book-deconstruct …` 斜杠命令：解析后 followup/steer 用户消息，让模型调用 dsh-book-deconstruct
+ *   - `dsh-book-deconstruct` 工具（智能体在对话中调用）
  */
 
 import { randomUUID } from 'node:crypto';
@@ -18,10 +18,10 @@ const DEFAULT_TEMPERATURE = 0.5;
 const DEFAULT_MAX_TOKENS = 8000;
 
 const USAGE = [
-  '用法：/book 书名 | 作者',
-  '示例：/book 思考，快与慢 | 丹尼尔·卡尼曼',
-  '也支持：/book 《思考，快与慢》丹尼尔·卡尼曼',
-  '或：/book 帮我解读《思考，快与慢》，作者丹尼尔·卡尼曼',
+  '用法：/dsh-book-deconstruct 书名 | 作者',
+  '示例：/dsh-book-deconstruct 思考，快与慢 | 丹尼尔·卡尼曼',
+  '也支持：/dsh-book-deconstruct 《思考，快与慢》丹尼尔·卡尼曼',
+  '或：/dsh-book-deconstruct 帮我解读《思考，快与慢》，作者丹尼尔·卡尼曼',
   '也可直接说：帮我解读《思考，快与慢》，作者丹尼尔·卡尼曼',
 ].join('\n');
 
@@ -98,7 +98,7 @@ export function parseBookInput(raw) {
     .trim();
   if (text === '') return null;
 
-  text = text.replace(/^\/book\b/i, '').trim();
+  text = text.replace(/^\/dsh-book-deconstruct\b/i, '').trim();
   if (text === '') return null;
 
   const intentMatch = text.match(INTENT_PREFIX);
@@ -173,12 +173,12 @@ export function parseBookInput(raw) {
 function buildSteerPrompt(parsed, raw) {
   if (parsed !== null) {
     return (
-      `必须调用 book_deconstruct 工具解读《${parsed.title}》，作者${parsed.author}。` +
+      `必须调用 dsh-book-deconstruct 工具解读《${parsed.title}》，作者${parsed.author}。` +
       '不要自己直接写短评或一两句话概括；完整解读由该工具产出。'
     );
   }
   return (
-    `必须调用 book_deconstruct 工具处理用户的书籍解读请求：${raw}。` +
+    `必须调用 dsh-book-deconstruct 工具处理用户的书籍解读请求：${raw}。` +
     '不要自己直接写短评或一两句话概括；完整解读由该工具产出。'
   );
 }
@@ -337,9 +337,9 @@ export function apply(ctx, rawConfig) {
   disposers.push(
     ctx.commands.register({
       // 挂 input.hint：从 / 菜单选 book 时保留输入框，继续填「书名 | 作者」。
-      // 也可整行输入 /book 书名 | 作者 后直接发送。
-      name: 'book',
-      description: '书籍拆解：深度解读一本书。用法：/book 书名 | 作者',
+      // 也可整行输入 /dsh-book-deconstruct 书名 | 作者 后直接发送。
+      name: 'dsh-book-deconstruct',
+      description: '书籍拆解：深度解读一本书。用法：/dsh-book-deconstruct 书名 | 作者',
       input: { hint: '书名 | 作者' },
       handler: async (invocation) => {
         const raw = String(invocation.rawInput ?? '').trim();
@@ -364,10 +364,10 @@ export function apply(ctx, rawConfig) {
           if (parsed !== null) {
             return {
               kind: 'success',
-              text: `已提交解读：《${parsed.title}》 / ${parsed.author}（请等待 book_deconstruct 产出完整解读，勿自行短评）`,
+              text: `已提交解读：《${parsed.title}》 / ${parsed.author}（请等待 dsh-book-deconstruct 产出完整解读，勿自行短评）`,
             };
           }
-          return { kind: 'success', text: '已提交书籍解读请求（将调用 book_deconstruct）' };
+          return { kind: 'success', text: '已提交书籍解读请求（将调用 dsh-book-deconstruct）' };
         }
 
         if (parsed === null) {
@@ -388,7 +388,7 @@ export function apply(ctx, rawConfig) {
 
   disposers.push(
     ctx.tools.register({
-      name: 'book_deconstruct',
+      name: 'dsh-book-deconstruct',
       description:
         '深度解读一本书：先写「故事情节」（讲清整本书，勿一句话短评、勿灌水），再写「一段有深度的思考」。用户要求解读/拆解某书时必须调用本工具，禁止自己用短评代替。',
       parameters: {

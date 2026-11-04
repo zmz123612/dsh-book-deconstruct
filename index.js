@@ -78,10 +78,18 @@ function cleanAuthorTail(value) {
   return author;
 }
 
+const INTENT_PREFIX =
+  /^(?:请?帮?我?)?(?:解读|拆解|总结|分析|讲讲|讲一下)(?:一下)?\s*/iu;
+
+function hasBookIntent(text) {
+  return /(?:解读|拆解|总结|分析|讲讲|讲一下)/u.test(text);
+}
+
 /**
  * 解析「书名 + 作者」。支持：
  *   《书名》作者 / 书名 | 作者 / 书名｜作者 / 书名 / 作者
  *   自然语言：帮我解读《活着》，作者余华
+ *   意图 + 空格：解读 平凡的世界 路遥 / 帮我拆解 活着 余华
  * @returns {{ title: string, author: string } | null}
  */
 export function parseBookInput(raw) {
@@ -93,6 +101,13 @@ export function parseBookInput(raw) {
   text = text.replace(/^\/book\b/i, '').trim();
   if (text === '') return null;
 
+  const intentMatch = text.match(INTENT_PREFIX);
+  const hadIntent = intentMatch !== null;
+  if (hadIntent) {
+    text = text.slice(intentMatch[0].length).trim();
+    if (text === '') return null;
+  }
+
   const angle = text.match(/《([^》\n]{1,200})》(.*)$/su);
   if (angle !== null) {
     const title = angle[1].trim();
@@ -101,7 +116,7 @@ export function parseBookInput(raw) {
   }
 
   const named = text.match(
-    /(?:请?帮?我?)?(?:解读|拆解|总结|分析|讲讲|讲一下)?\s*[《「"']?([^》」"'\n|｜，,]{1,200}?)[》」"']?\s*[，,、]?\s*(?:作者(?:是)?|by)\s*[：:：]?\s*(.+)$/iu,
+    /[《「"']?([^》」"'\n|｜，,]{1,200}?)[》」"']?\s*[，,、]?\s*(?:作者(?:是)?|by)\s*[：:：]?\s*(.+)$/iu,
   );
   if (named !== null) {
     const title = cleanField(named[1], 200);
@@ -137,6 +152,19 @@ export function parseBookInput(raw) {
     const title = cleanField(lines[0], 200);
     const author = cleanAuthorTail(lines.slice(1).join(' '));
     if (title !== '' && author !== '') return { title, author };
+  }
+
+  // 仅在有解读意图时：末段当作者，前面当书名（避免误伤普通两词输入）
+  if (hadIntent) {
+    const parts = text
+      .split(/\s+/u)
+      .map((part) => part.trim())
+      .filter((part) => part !== '');
+    if (parts.length >= 2) {
+      const title = cleanField(parts.slice(0, -1).join(' '), 200);
+      const author = cleanAuthorTail(parts[parts.length - 1]);
+      if (title !== '' && author !== '') return { title, author };
+    }
   }
 
   return null;
@@ -318,7 +346,12 @@ export function apply(ctx, rawConfig) {
         if (raw === '') return { kind: 'error', text: USAGE };
 
         const parsed = parseBookInput(raw);
-        if (parsed === null && !/作者|by|《.|》/u.test(raw) && !/[|｜]/u.test(raw)) {
+        if (
+          parsed === null &&
+          !hasBookIntent(raw) &&
+          !/作者|by|《.|》/u.test(raw) &&
+          !/[|｜]/u.test(raw)
+        ) {
           return { kind: 'error', text: USAGE };
         }
 

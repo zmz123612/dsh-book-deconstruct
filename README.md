@@ -1,6 +1,8 @@
 # dsh-book-deconstruct
 
-DeepSeek Harness **Host 插件**（不是 Agent 预设）：装进 profile 后会出现在插件列表，**任意会话**都可用：
+DeepSeek Harness **Host 插件**：装进 profile 后会出现在插件列表，**任意会话**都可用：
+好用的书籍拆解工具 |
+输入 书名 作者 即可完整拆解整本书的情节并总结 比如输入  帮我拆解  平凡的世界  作者路遥 
 
 - 斜杠命令：`/dsh-book-deconstruct 书名 | 作者`
 - 工具：`dsh-book-deconstruct`（智能体在对话里调用）
@@ -29,7 +31,7 @@ dsh plugin --profile desktop add github:OWNER/dsh-book-deconstruct
 
 ## 用法
 
-任意预设下的会话均可：
+任意的会话均可：
 
 ```text
 /dsh-book-deconstruct 思考，快与慢 | 丹尼尔·卡尼曼
@@ -64,7 +66,3 @@ dsh plugin --profile desktop add github:OWNER/dsh-book-deconstruct
     temperature: 0.5
     maxTokens: 8000
 ```
-
-## Topics（上架市场）
-
-公开 GitHub 仓库后请添加 Topics：`dsh-plugin`、`deepseek-harness`。也可在 [DSH Marketplace](https://dshmarketplace.dev/submit) 提交仓库。

@@ -1,5 +1,5 @@
 # 「书籍拆解」Host 插件：任意会话可用 /dsh-book-deconstruct 与 dsh-book-deconstruct。
-# 不再注册 Agent 预设；请在插件列表启用本包即可。
+# 包名 dsh-plugin-book-deconstruct（便于插件商店 GitHub 名搜索）；命令/工具名仍为 dsh-book-deconstruct。
 - insert:
-    - id: dsh-book-deconstruct
-      name: dsh-book-deconstruct
+    - id: dsh-plugin-book-deconstruct
+      name: dsh-plugin-book-deconstruct

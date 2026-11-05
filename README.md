@@ -1,4 +1,4 @@
-# dsh-book-deconstruct
+# dsh-plugin-book-deconstruct
 
 DeepSeek Harness **Host 插件**：装进 profile 后会出现在插件列表，**任意会话**都可用：
 
@@ -29,14 +29,14 @@ DeepSeek Harness **Host 插件**：装进 profile 后会出现在插件列表，
 从 npm（推荐）：
 
 ```sh
-dsh plugin --profile desktop add dsh-book-deconstruct
+dsh plugin --profile desktop add dsh-plugin-book-deconstruct
 ```
 
 
 从 GitHub：
 
 ```sh
-dsh plugin --profile desktop add github:OWNER/dsh-book-deconstruct
+dsh plugin --profile desktop add github:OWNER/dsh-plugin-book-deconstruct
 ```
 
 装完后**完全退出并重新打开** DeepSeek Harness。
@@ -48,8 +48,8 @@ dsh plugin --profile desktop add github:OWNER/dsh-book-deconstruct
 在 profile 的 `cordis.patch.yml` 按行 id `dsh-book-deconstruct` 覆盖：
 
 ```yaml
-- id: dsh-book-deconstruct
-  name: dsh-book-deconstruct
+- id: dsh-plugin-book-deconstruct
+  name: dsh-plugin-book-deconstruct
   config:
     provider: ''   # 与 model 成对；空则用默认模型
     model: ''

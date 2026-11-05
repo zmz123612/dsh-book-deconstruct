@@ -1,5 +1,5 @@
 {
-  "name": "dsh-plugin-book-deconstruct",
+  "name": "dsh-book-deconstruct",
   "version": "1.2.0",
   "description": "dsh-plugin — 书籍拆解：/dsh-book-deconstruct slash + tool for full book walkthroughs.",
   "keywords": [

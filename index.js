@@ -7,12 +7,12 @@
  *
  * 约束：
  *   1. 保留用户原问题（不替换、不改写原文）
- *   2. 同会话每次提问都重新调 dsh-book-deconstruct 工具；书名/作者重复也一样
+ *   2. 同会话每次提问都重新调 dsh-plugin-book-deconstruct 工具；书名/作者重复也一样
  *
  * 入口：
- *   - `/dsh-book-deconstruct …`：立刻回执；把原问题投入会话；强制调工具
+ *   - `/dsh-plugin-book-deconstruct …`：立刻回执；把原问题投入会话；强制调工具
  *   - 自然语言（解读/帮我拆解…）：保留原话，追加强制调工具提示
- *   - `dsh-book-deconstruct` 工具：真正执行解读
+ *   - `dsh-plugin-book-deconstruct` 工具：真正执行解读
  */
 
 import { randomUUID } from 'node:crypto';
@@ -21,7 +21,7 @@ export const inject = ['llm', 'commands', 'tools', 'agents'];
 
 const DEFAULT_TEMPERATURE = 0.5;
 const DEFAULT_MAX_TOKENS = 8000;
-const TOOL_NAME = 'dsh-book-deconstruct';
+const TOOL_NAME = 'dsh-plugin-book-deconstruct';
 const STEER_PREFIX = `必须调用 ${TOOL_NAME} 工具`;
 
 const USAGE = [
@@ -437,7 +437,7 @@ export function apply(ctx, rawConfig) {
   disposers.push(
     ctx.commands.register({
       name: TOOL_NAME,
-      description: '书籍拆解：深度解读一本书。用法：/dsh-book-deconstruct 书名 | 作者',
+      description: '书籍拆解：深度解读一本书。用法：/dsh-plugin-book-deconstruct 书名 | 作者',
       input: { hint: '书名 | 作者' },
       handler: async (invocation) => {
         const raw = String(invocation.rawInput ?? '').trim();

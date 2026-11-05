@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Book Deconstruct",
-    "description": "Host plugin: /dsh-book-deconstruct and dsh-book-deconstruct in any session. Clear plot of the whole book, then one deep reflection."
+    "description": "Host plugin: /dsh-plugin-book-deconstruct and dsh-plugin-book-deconstruct in any session. Clear plot of the whole book, then one deep reflection."
   }
 }

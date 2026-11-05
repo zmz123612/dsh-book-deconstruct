@@ -5,10 +5,14 @@
  *   1. 书籍的故事情节（讲清整本书，不要一句话短评，也不要灌水）
  *   2. 一段有深度的思考（最后只写一段，不列条目）
  *
- * 两个入口共用同一套解读逻辑（工具 execute）：
- *   - `/dsh-book-deconstruct …` 斜杠命令：解析后 followup/steer 用户消息，让模型调用 dsh-book-deconstruct
- *   - 自然语言（解读/帮我拆解…）：在 agent/pre-step 改写成同一条 steer 提示，再调工具
- *   - `dsh-book-deconstruct` 工具（智能体在对话中调用）
+ * 约束：
+ *   1. 保留用户原问题（不替换、不改写原文）
+ *   2. 同会话每次提问都重新调 dsh-book-deconstruct 工具；书名/作者重复也一样
+ *
+ * 入口：
+ *   - `/dsh-book-deconstruct …`：立刻回执；把原问题投入会话；强制调工具
+ *   - 自然语言（解读/帮我拆解…）：保留原话，追加强制调工具提示
+ *   - `dsh-book-deconstruct` 工具：真正执行解读
  */
 
 import { randomUUID } from 'node:crypto';
@@ -17,12 +21,14 @@ export const inject = ['llm', 'commands', 'tools', 'agents'];
 
 const DEFAULT_TEMPERATURE = 0.5;
 const DEFAULT_MAX_TOKENS = 8000;
+const TOOL_NAME = 'dsh-book-deconstruct';
+const STEER_PREFIX = `必须调用 ${TOOL_NAME} 工具`;
 
 const USAGE = [
-  '用法：/dsh-book-deconstruct 书名 | 作者',
-  '示例：/dsh-book-deconstruct 思考，快与慢 | 丹尼尔·卡尼曼',
-  '也支持：/dsh-book-deconstruct 《思考，快与慢》丹尼尔·卡尼曼',
-  '或：/dsh-book-deconstruct 帮我解读《思考，快与慢》，作者丹尼尔·卡尼曼',
+  `用法：/${TOOL_NAME} 书名 | 作者`,
+  `示例：/${TOOL_NAME} 思考，快与慢 | 丹尼尔·卡尼曼`,
+  `也支持：/${TOOL_NAME} 《思考，快与慢》丹尼尔·卡尼曼`,
+  `或：/${TOOL_NAME} 帮我解读《思考，快与慢》，作者丹尼尔·卡尼曼`,
   '也可直接说：帮我解读《思考，快与慢》，作者丹尼尔·卡尼曼',
 ].join('\n');
 
@@ -82,8 +88,15 @@ function cleanAuthorTail(value) {
 const INTENT_PREFIX =
   /^(?:请?帮?我?)?(?:解读|拆解|总结|分析|讲讲|讲一下)(?:一下)?\s*/iu;
 
+/** 斜杠 followup 防去重标记；解析前剥离，不污染书名/作者。 */
+const REQUEST_MARK_RE = /\n?［请求:[^］]+］\s*$/u;
+
 function hasBookIntent(text) {
   return /(?:解读|拆解|总结|分析|讲讲|讲一下)/u.test(text);
+}
+
+function stripRequestMark(text) {
+  return text.replace(REQUEST_MARK_RE, '').trim();
 }
 
 /**
@@ -99,7 +112,10 @@ export function parseBookInput(raw) {
     .trim();
   if (text === '') return null;
 
-  text = text.replace(/^\/dsh-book-deconstruct\b/i, '').trim();
+  text = stripRequestMark(text);
+  if (text === '') return null;
+
+  text = text.replace(new RegExp(`^/${TOOL_NAME}\\b`, 'i'), '').trim();
   if (text === '') return null;
 
   const intentMatch = text.match(INTENT_PREFIX);
@@ -171,18 +187,20 @@ export function parseBookInput(raw) {
   return null;
 }
 
-const STEER_MARKER = '必须调用 dsh-book-deconstruct 工具';
+function newRequestId() {
+  return `${Date.now()}-${randomUUID().slice(0, 8)}`;
+}
 
-function buildSteerPrompt(parsed, raw) {
-  if (parsed !== null) {
-    return (
-      `${STEER_MARKER}解读《${parsed.title}》，作者${parsed.author}。` +
-      '不要自己直接写短评或一两句话概括；完整解读由该工具产出。'
-    );
-  }
+/** 强制调工具；每次带唯一 requestId，避免同书重复请求被当成重复消息。 */
+function buildToolSteerPrompt(parsed, raw, requestId) {
+  const target =
+    parsed !== null
+      ? `解读《${parsed.title}》，作者${parsed.author}`
+      : `处理：${raw}`;
   return (
-    `${STEER_MARKER}处理用户的书籍解读请求：${raw}。` +
-    '不要自己直接写短评或一两句话概括；完整解读由该工具产出。'
+    `${STEER_PREFIX}（${requestId}）${target}。` +
+    '这是一次全新请求：即使用户重复同一本书，或本会话已解读过其他书，也必须再次调用工具；' +
+    '禁止复用旧结果，禁止自己写短评代替。调用后把工具返回的全文原样展示给用户。'
   );
 }
 
@@ -195,13 +213,22 @@ function messageText(message) {
     .trim();
 }
 
-/** 自然语言书籍解读：改写成与斜杠命令相同的强制调工具提示。 */
-function shouldSteerFreeform(text) {
-  if (text === '' || text.includes(STEER_MARKER)) return false;
-  if (/^\/dsh-book-deconstruct\b/i.test(text)) return false;
-  if (!hasBookIntent(text)) return false;
+/**
+ * 是否需要追加强制调工具提示。
+ * 斜杠 followup 只投入「书名 | 作者」原文时，也要能识别并强制调工具。
+ */
+function shouldHandleFreeform(text) {
+  if (text === '') return false;
+  if (text.includes(STEER_PREFIX)) return false;
+
   const parsed = parseBookInput(text);
-  if (parsed !== null) return true;
+  if (parsed !== null) {
+    if (hasBookIntent(text)) return true;
+    // 斜杠命令 followup 的原文：平凡的世界 | 路遥 / 《书》作者
+    if (/[|｜]/u.test(text) || /作者|by/iu.test(text) || /《.+》/u.test(text)) return true;
+  }
+
+  if (!hasBookIntent(text)) return false;
   return /作者|by|《.|》/u.test(text) || /[|｜]/u.test(text);
 }
 
@@ -215,7 +242,27 @@ function makeUserMessage(text) {
   });
 }
 
-function enqueueUserTurn(agent, message) {
+function makePluginMessage(text) {
+  return Object.freeze({
+    id: randomUUID(),
+    role: 'user',
+    content: Object.freeze([{ type: 'text', text }]),
+    source: Object.freeze({
+      kind: `plugin:${TOOL_NAME}`,
+      plugin: TOOL_NAME,
+    }),
+  });
+}
+
+function isPluginSource(source) {
+  if (source !== null && source !== undefined) {
+    const kind = source.kind;
+    if (kind === 'plugin' || (typeof kind === 'string' && kind.startsWith('plugin:'))) return true;
+  }
+  return false;
+}
+
+function enqueueAgentMessage(agent, message) {
   if (agent !== null && agent !== undefined && typeof agent.followup === 'function') {
     agent.followup(message);
     return true;
@@ -263,7 +310,7 @@ function buildAnalysisPrompt(title, author) {
 }
 
 // ---------------------------------------------------------------------------
-// LLM 调用（仅工具路径使用；斜杠命令改走 agent 回合）
+// LLM 调用（工具路径使用；斜杠无 agent 时降级）
 // ---------------------------------------------------------------------------
 
 function resolveRoute(ctx, config) {
@@ -356,32 +403,40 @@ export function apply(ctx, rawConfig) {
   const config = normalizeConfig(rawConfig);
   const disposers = [];
 
-  // 普通对话里说「解读/帮我拆解…」时，斜杠 handler 不会跑；
-  // 在 pre-step 把用户话改写成与 /dsh-book-deconstruct 相同的 steer，强制走工具。
+  // 保留用户原话，只追加「必须调工具」提示；正文只由工具产出。
   disposers.push(
     ctx.on('agent/pre-step', async (_payload, next) => {
       const decision = await next();
       if (decision.kind !== 'enter') return decision;
 
       let changed = false;
-      const rewritten = decision.messages.map((message) => {
-        const source = message.source;
-        if (source !== null && source !== undefined && source.kind === 'plugin') return message;
+      const rewritten = [];
+      for (const message of decision.messages) {
+        if (isPluginSource(message.source)) {
+          rewritten.push(message);
+          continue;
+        }
         const raw = messageText(message);
-        if (!shouldSteerFreeform(raw)) return message;
+        if (!shouldHandleFreeform(raw)) {
+          rewritten.push(message);
+          continue;
+        }
+
         changed = true;
-        return makeUserMessage(buildSteerPrompt(parseBookInput(raw), raw));
-      });
+        rewritten.push(message);
+        rewritten.push(
+          makePluginMessage(buildToolSteerPrompt(parseBookInput(raw), raw, newRequestId())),
+        );
+      }
+
       if (!changed) return decision;
-      return { kind: 'enter', messages: rewritten };
+      return { ...decision, messages: rewritten };
     }),
   );
 
   disposers.push(
     ctx.commands.register({
-      // 挂 input.hint：从 / 菜单选 book 时保留输入框，继续填「书名 | 作者」。
-      // 也可整行输入 /dsh-book-deconstruct 书名 | 作者 后直接发送。
-      name: 'dsh-book-deconstruct',
+      name: TOOL_NAME,
       description: '书籍拆解：深度解读一本书。用法：/dsh-book-deconstruct 书名 | 作者',
       input: { hint: '书名 | 作者' },
       handler: async (invocation) => {
@@ -389,38 +444,22 @@ export function apply(ctx, rawConfig) {
         if (raw === '') return { kind: 'error', text: USAGE };
 
         const parsed = parseBookInput(raw);
-        if (
-          parsed === null &&
-          !hasBookIntent(raw) &&
-          !/作者|by|《.|》/u.test(raw) &&
-          !/[|｜]/u.test(raw)
-        ) {
-          return { kind: 'error', text: USAGE };
-        }
+        if (parsed === null) return { kind: 'error', text: USAGE };
 
-        // 桌面端：先 steer/followup 让会话调用工具（整行发送才有反应）。
-        // 不要在 handler 里长时间 await 模型，否则输入框像「点了没反应」。
-        const prompt = buildSteerPrompt(parsed, raw);
+        // 会话里只显示用户输入的书名/作者原文，不带 /命令 和请求号。
+        // 强制调工具由 pre-step 追加（唯一 requestId 只在插件提示里）。
         const agent = invocation.agent;
-        const ok = enqueueUserTurn(agent, makeUserMessage(prompt));
-        if (ok) {
-          if (parsed !== null) {
-            return {
-              kind: 'success',
-              text: `已提交解读：《${parsed.title}》 / ${parsed.author}（请等待 dsh-book-deconstruct 产出完整解读，勿自行短评）`,
-            };
-          }
-          return { kind: 'success', text: '已提交书籍解读请求（将调用 dsh-book-deconstruct）' };
+
+        // 立刻回执，避免桌面端「点了发送没反应」。
+        if (enqueueAgentMessage(agent, makeUserMessage(raw))) {
+          return { kind: 'success', text: `已收到：${raw}` };
         }
 
-        if (parsed === null) {
-          return { kind: 'error', text: USAGE };
-        }
         try {
           const text = await deconstruct(ctx, config, parsed.title, parsed.author, {
             signal: invocation.signal,
           });
-          return { kind: 'success', text };
+          return { kind: 'success', text: `问题：${raw}\n\n${text}` };
         } catch (error) {
           const message = error !== null && error !== undefined && error.message ? error.message : String(error);
           return { kind: 'error', text: '解读失败：' + message };
@@ -431,9 +470,11 @@ export function apply(ctx, rawConfig) {
 
   disposers.push(
     ctx.tools.register({
-      name: 'dsh-book-deconstruct',
+      name: TOOL_NAME,
       description:
-        '深度解读一本书：先写「故事情节」（讲清整本书，勿一句话短评、勿灌水），再写「一段有深度的思考」。用户要求解读/拆解某书时必须调用本工具，禁止自己用短评代替。',
+        '深度解读一本书：先写「故事情节」（讲清整本书，勿一句话短评、勿灌水），再写「一段有深度的思考」。' +
+        '用户要求解读/拆解某书时必须调用；即使用户重复同一本、或本会话已解读过其他书，也必须再次调用并重新生成；' +
+        '禁止复用旧结果，禁止自己写短评代替。',
       parameters: {
         type: 'object',
         properties: {

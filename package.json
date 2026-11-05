@@ -1,6 +1,6 @@
 {
   "name": "dsh-book-deconstruct",
-  "version": "1.1.12",
+  "version": "1.1.19",
   "description": "DSH Host plugin: /dsh-book-deconstruct slash command + dsh-book-deconstruct tool for full book walkthroughs.",
   "keywords": [
     "dsh",
@@ -26,7 +26,9 @@
     "locale/zh.json",
     "icon.svg",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "第一种使用方式.png",
+    "第二种使用方式.png"
   ],
   "engines": {
     "dsh": ">=0.2.0"

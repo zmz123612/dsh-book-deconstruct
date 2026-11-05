@@ -1,8 +1,9 @@
 # dsh-book-deconstruct
 
-DeepSeek Harness **Host 插件**（不是 Agent 预设）：装进 profile 后会出现在插件列表，**任意会话**都可用：
+DeepSeek Harness **Host 插件**：装进 profile 后会出现在插件列表，**任意会话**都可用：
+好用的书籍拆解工具  
 
-- 斜杠命令：`/dsh-book-deconstruct 书名 | 作者`
+- 斜杠命令：`/dsh-book-deconstruct 书名 | 作者`  或者   `帮我解读书籍 xxx  作者xxx` 
 - 工具：`dsh-book-deconstruct`（智能体在对话里调用）
 
 ## 安装
@@ -16,10 +17,10 @@ dsh plugin --profile desktop add dsh-book-deconstruct
 从本地目录（开发）：
 
 ```sh
-dsh plugin --profile desktop add /path/to/dsh-book-deconstruct-deconstruct
+dsh plugin --profile desktop add /path/to/dsh-book-deconstruct
 ```
 
-从 GitHub（需公开仓库）：
+从 GitHub：
 
 ```sh
 dsh plugin --profile desktop add github:OWNER/dsh-book-deconstruct
@@ -29,7 +30,7 @@ dsh plugin --profile desktop add github:OWNER/dsh-book-deconstruct
 
 ## 用法
 
-任意预设下的会话均可：
+任意的会话均可：
 
 ```text
 /dsh-book-deconstruct 思考，快与慢 | 丹尼尔·卡尼曼
@@ -64,7 +65,12 @@ dsh plugin --profile desktop add github:OWNER/dsh-book-deconstruct
     temperature: 0.5
     maxTokens: 8000
 ```
+## 使用方式
 
-## Topics（上架市场）
+### 第一种使用方式
 
-公开 GitHub 仓库后请添加 Topics：`dsh-plugin`、`deepseek-harness`。也可在 [DSH Marketplace](https://dshmarketplace.dev/submit) 提交仓库。
+![第一种使用方式](./第一种使用方式.png)
+
+### 第二种使用方式
+
+![第二种使用方式](./第二种使用方式.png)

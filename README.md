@@ -45,7 +45,7 @@ dsh plugin --profile desktop add github:OWNER/dsh-plugin-book-deconstruct
 
 ## 配置（可选）
 
-在 profile 的 `cordis.patch.yml` 按行 id `dsh-book-deconstruct` 覆盖：
+在 profile 的 `cordis.patch.yml` 按行 id `dsh-plugin-book-deconstruct` 覆盖：
 
 ```yaml
 - id: dsh-plugin-book-deconstruct
